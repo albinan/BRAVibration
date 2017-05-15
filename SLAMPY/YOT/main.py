@@ -309,9 +309,9 @@ class window(QtWidgets.QWidget):
             print('Plotting time signal')
             for i in range(0, np.shape(self.t)[0]):
                 for j in range(0, np.shape(self.a[i])[0]):
-                    ax_signal.plot(self.t[i], self.a[i][j], label = 'data ' + str(i) + ' ' + str(axis[j]) + '-axis\n'
-                                    + 'Sample frequency: ' + "{:.2e}".format(self.fs[i]) + ' Hz\n'
-                                    + 'RMS: ' + "{:.2e}".format(self.rms[i][j]) + ' g\n'
+                    ax_signal.plot(self.t[i], self.a[i][j], label = str(axis[j]) + '-axis\n'
+                                    + 'Sample frequency: ' + str(round(self.fs[i])) + ' Hz\n'
+                                    + 'RMS: ' + "{0:0.2f}".format(self.rms[i][j]) + ' g\n'
                                     + 'Time of measurement: ' + "{:.2e}".format(self.t[i][-1] - self.t[i][0]) + ' s', linewidth=0.5)
                 if self.t[i][-1] > t_max:
                     t_max = self.t[i][-1]
@@ -372,10 +372,10 @@ class window(QtWidgets.QWidget):
                     print(j*i+j)
                     nmaxpsdbw = np.argmin(np.abs(psdbw-maxpsdbw[j*i+j]))
                     print(nmaxpsdbw)
-                    fmaxpsdbw.append(freq_pos[nmaxpsdbw])
+                    fmaxpsdbw.append(freq_pos[nmaxpsdbw+int(n_bw/2)])
 
                     print('n_bw', n_bw)
-                    ax_psdbw.semilogy(freq_pos[int(n_bw/2):-int(n_bw/2)], psdbw, linewidth=0.5,label=str(axis[j]) + '-axis, fmax=' + str(fmaxpsdbw[j*i+j]) + ' (Hz), gmax=' + "{:.2e}".format(maxpsdbw[j*i+j])+' (g)')
+                    ax_psdbw.semilogy(freq_pos[int(n_bw/2):-int(n_bw/2)], psdbw, linewidth=0.5,label=str(axis[j]) + '-axis, fmax = ' + str("{0:0.1f}".format(fmaxpsdbw[j*i+j])) + ' (Hz), gmax=' + "{0:0.3f}".format(maxpsdbw[j*i+j])+' (g)')
                     wmax = 2*np.pi*freq_pos[nmaxpsdbw]
                     kmax = wmax**2*mod.mass
                     H = mod.H(self.freq[i], k=kmax)
@@ -390,7 +390,7 @@ class window(QtWidgets.QWidget):
                     print('4')
                     ax_inputspectrum.semilogy(freq_pos, 2*np.abs(self.dft[i][j][1:int(n/2)]), label=str(axis[j]) +'-axis', linewidth=0.5)
                     print('5')
-                    ax_outputspectrum.semilogy(freq_pos, 2*np.abs(Vpsd_pred[1:int(n/2)]), label=str(axis[j]) +'-axis, Prms=' +"{:.2e}".format(Prms_pred*1000)+' mW' , linewidth=0.5)
+                    ax_outputspectrum.semilogy(freq_pos, 2*np.abs(Vpsd_pred[1:int(n/2)]), label=str(axis[j]) +'-axis, P_avg = ' +"{0:0.2f}".format(Prms_pred*1000)+' mW' , linewidth=0.5)
                     print('6')
                     ax_model.plot(freq_pos, 2*np.abs(H[1:int(n/2)]), label='Model V(jw)/g(jw), data ' + str(i) + ' ' + str(axis[j]) +'-axis', linewidth=1)
 
@@ -429,8 +429,8 @@ class window(QtWidgets.QWidget):
             ylim = ax_psdbw.get_ylim()
             ax_psdbw.minorticks_on()
             ax_psdbw.legend(loc=2)
-            for f in fmaxpsdbw:
-                ax_psdbw.plot([f, f], [ylim[0], ylim[1]], color='k', linestyle='dashed', linewidth=1)
+            #for f in fmaxpsdbw:
+            #    ax_psdbw.plot([f, f], [ylim[0], ylim[1]], color='k', linestyle='dashed', linewidth=1)
 
 
             print('8')
@@ -532,10 +532,10 @@ class window(QtWidgets.QWidget):
             n = np.size(t) # Number of samples
 
             # Create proper time vector with same sample frequency
-            if t[10] > t[0]: # If t vector does not reset in interval
-                timestep = (t[9]-t[0])/10 # Average of 10 samples in case of unequal samplewidth
+            if t[100] > t[0]: # If t vector does not reset in interval
+                timestep = (t[9999]-t[0])/10000 # Average of 10 samples in case of unequal samplewidth
             else:
-                timestep = (t[19]-t[10])/10
+                timestep = (t[19999]-t[10000])/10000
             t = np.asarray(range(0, n))*timestep # Easier to deal with np array
 
             acccolumns = self.acccolumn_Edit.text().split(',') # Acceleration
@@ -572,7 +572,7 @@ class window(QtWidgets.QWidget):
 
             if np.mod(np.size(t), 2) != 0: # Vector has to have even number of elements for fft indexing
                 t = t[:-1]
-            t = t - t[0] # Start time vector from 0
+            t = t # Start time vector from 0
             n = np.size(t) # Redefining number of elements from new interval
             fs = 1/timestep # Sampling frequency
             dft = []    # List with each element containing dft from analyzed column
