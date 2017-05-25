@@ -3,7 +3,7 @@ import wave
 import threading
 import sys
 import time
-
+import numpy as np
 # PyAudio Library
 import pyaudio
 
@@ -16,7 +16,7 @@ class WavePlayerLoop(threading.Thread):
     """
     CHUNK = 1024
 
-    def __init__(self, filepath, loop=True):
+    def __init__(self, filepath, loop=True, t_start=0, length=1000000):
         """
         Initialize `WavePlayerLoop` class.
         PARAM:
@@ -28,40 +28,43 @@ class WavePlayerLoop(threading.Thread):
         self.filepath = os.path.abspath(filepath)
         self.loop = loop
         self.timeStamp = 0
+        self.t_start = t_start
+        self.length = length
 
-    def run(self):
-        time.sleep(1)
         # Open Wave File and start play!
-        wf = wave.open(self.filepath, 'rb')
-        player = pyaudio.PyAudio()
+        self.wf = wave.open(self.filepath, 'rb')
+        self.player = pyaudio.PyAudio()
         # Open Output Stream (basen on PyAudio tutorial)
-        devinfo = player.get_device_info_by_index(1)
-        rate = wf.getframerate()
-        if player.is_format_supported(float(rate)
+        devinfo = self.player.get_device_info_by_index(1)
+        self.rate = self.wf.getframerate()
+        if self.player.is_format_supported(float(self.rate)
                                      , input_device=devinfo['index']
                                      , input_channels=devinfo['maxInputChannels']
                                      , input_format=pyaudio.paInt16):
-            print('Sample rate: ', rate, ' is supported')
+            print('Sample rate: ', self.rate, ' is supported')
         else:
-            print('Sample rate ', rate, ' is not supported')
-        print('Hellooooooooo')
-        print('Sample rate: ', rate)
-        stream = player.open(format=player.get_format_from_width(wf.getsampwidth())
-                             , channels=wf.getnchannels()
-                             , rate=rate
+            print('Sample rate ', self.rate, ' is not supported')
+        print('Sample rate wav file: ', self.rate)
+        self.stream = self.player.open(format=self.player.get_format_from_width(self.wf.getsampwidth())
+                             , channels=self.wf.getnchannels()
+                             , rate=self.rate
                              , output=True)
 
+    def run(self):
+        time.sleep(2) # Waiting for  oscilloscoe to clear
         # PLAYBACK LOOP
-        self.timeStamp = time.time()
-        data = wf.readframes(self.CHUNK)
-        while self.loop:
-            stream.write(data)
-            data = wf.readframes(self.CHUNK)
-            if data == '':  # If file is over then rewind.
-                wf.rewind()
-                data = wf.readframes(self.CHUNK)
-        stream.close()
-        player.terminate()
+        startpos = int(np.round(self.rate*self.t_start))
+        self.wf.setpos(startpos)
+        n_frames = int(self.length*self.rate)
+        if n_frames+startpos > self.wf.getnframes():
+            n_frames = self.wf.getnframes()-startpos
+        frames = self.wf.readframes(n_frames)
+        self.timeStamp_start = time.time()
+        self.stream.write(frames)
+        self.timeStamp_stop = time.time()
+        self.wf.close()
+        self.stream.close()
+        self.player.terminate()
 
     def play(self):
         """
@@ -70,11 +73,4 @@ class WavePlayerLoop(threading.Thread):
         self.start()
 
     def stop(self):
-        """
-        Stop playback.
-        """
-        self.loop = False
-        return self.timeStamp
-
-    def whatsTheTime(self):
-        return self.time
+         self.loop = False

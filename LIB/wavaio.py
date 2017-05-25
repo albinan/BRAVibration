@@ -8,75 +8,64 @@ from scipy.io import wavfile
 sys.path.append('C:/Users/ReVibe/Documents/Albin/MasterSnake/LIB')
 sys.path.append('C:/Users/ReVibe/Documents/Albin/MasterSnake/LIB/wavio')
 import wavio
-from importdata import guiimport
+from importdata0 import importTool
 from fun import rootMeanSquare
+from scipy.signal import resample
 import scipy.io.wavfile
 import struct
 
 
-def writeWav(t_i, x_i, csvFileLoc, fs_f=41000, scale_t=1, scale_a=1, fileAdd=''):
-    x_i = (x_i - np.mean(x_i))*scale_a
-    t_i = (t_i - t_i[0])*scale_t
+def writeWav(t_i, x_i, csvFileLoc, fs_f=41000, scale_t=1, scale_a=1, fileAdd='', test=False):
 
+    ##INITIAL SIGNAL
+    x_i = (x_i - np.mean(x_i))*scale_a  # initial acceleration vector
+    t_i = (t_i - t_i[0])*scale_t  # final acceleration vector
 
     # Parameters for initial signal
-    dt_i = t_i[1]-t_i[0]
-    fs_i = 1/dt_i
     n_i = np.size(t_i)
-    rms_i = rootMeanSquare(x_i)
+    dt_i = (t_i[-1]-t_i[0])/(n_i-1)
+    fs_i = 1/dt_i
+    xrms_i = rootMeanSquare(x_i)
+    x_i_max = np.max(np.abs(x_i))
 
     # Resample time vector in case of strange data
     t_i = np.linspace(0, 1, n_i)*dt_i*(n_i-1)
     t_tot = t_i[-1]
-    print(t_tot)
-    # Parameters for final signal
-    n_f = np.round(t_tot*fs_f)
-    delta_n = n_f - n_i
 
-    if np.mod(delta_n, 2) == 1:
-        delta_n = delta_n - 1
+    # FINAL SIGNAL
+    n_f = np.round(t_tot*fs_f) # number of samples for final signal
+    print('Resampling signal. This migth take some time...')
+    (x_f, t_f) = resample(x_i, n_f, t_i)
+    x_f_max = np.max(np.abs(x_f))
+    xrms_f = rootMeanSquare(x_f)
 
-    print('Calculating FFT...')
-    x_fft_i = fftshift(fft(x_i))
-    print('nf', n_f, 'ni', n_i)
-    if n_f > n_i:
-        print('Padding...')
-        x_fft_f = np.pad(
-            x_fft_i,
-            pad_width=int(delta_n/2),
-            mode='constant',
-            constant_values=0)
-        print('Calculating IFFT...')
-        x_f = ifft(ifftshift(x_fft_f))
-        x_f = x_f.real
-        rms_f = rootMeanSquare(x_f)
-        x_f = x_f*(rms_i/rms_f)
-        t_f = np.linspace(0, 1, np.size(x_f))*t_tot
-    if n_f < n_i:
-        x_fft_f = x_fft_i[int(n_f/2):-int(n_f/2)]
+    if test:
+        plt.plot(t_f, x_f)
+        plt.plot(t_i, x_i)
+        print('xrms_i', xrms_i)
+        print('max_i', x_i_max)
+        print('fs_i', fs_i)
+        print('xrms_f', xrms_f)
+        print('max_f', x_f_max)
+        plt.show()
 
-        x_f = ifft(ifftshift(x_fft_f))
-        x_f = x_f.real
-        rms_f = rootMeanSquare(x_f)
-        x_f = x_f*(rms_i/rms_f)
-        t_f = np.linspace(0, 1, np.size(x_f))*t_tot
-
+    sampwidth = 4
+    x_f_scaled = np.int16((x_f/x_f_max) * 32767)
     print('Sample Frequency initial: ', fs_i)
     print('Sample Frequency final: ', 1/(t_f[1]-t_f[0]))
     print('wavFileLoc: ', csvFileLoc[:-4] + '.wav')
+    print('xrms_i/xrms_f', str(xrms_i/xrms_f))
+    print('gmax_i/gmax_f', str(x_i_max/x_f_max))
     print('Writing wav file...')
-    sampwidth = 4
-    plt.plot(t_f, x_f)
-    plt.show()
-    x_i_max = np.max(np.abs(x_i))
-    x_f_max = np.max(np.abs(x_f))
-    x_f_scaled = np.int16((x_f/x_f_max) * 32767)
-    scipy.io.wavfile.write(csvFileLoc[:-4] + fileAdd + 'Fs' + str(fs_f) + 'Sw' + str(sampwidth) + '.wav', fs_f, x_f_scaled)
 
-    with open(csvFileLoc[:-4] + fileAdd + 'Fs' + str(fs_f) + 'Sw' + str(sampwidth) + 'CALIBRATION' + '.csv', 'w') as csvfile:
+    scipy.io.wavfile.write(csvFileLoc[:-4] + fileAdd +'resampled_Fs' + str(fs_f) + '.wav', fs_f, x_f_scaled)
+
+    with open(csvFileLoc[:-4] + fileAdd +'resampled_Fs' + str(fs_f) + 'CALIBRATION.csv', 'w') as csvfile:
         spamwriter = csv.writer(csvfile, delimiter=',')
         spamwriter.writerow(['g_max'])
-        spamwriter.writerow([str(x_i_max)])
+        spamwriter.writerow([str(x_f_max)])
+        spamwriter.writerow(['rms'])
+        spamwriter.writerow([str(xrms_f)])
 
     fig = plt.figure()
     ax_fig = fig.add_subplot(111)
@@ -87,25 +76,4 @@ def writeWav(t_i, x_i, csvFileLoc, fs_f=41000, scale_t=1, scale_a=1, fileAdd='')
 
 def readWav(wavFileLoc):
     fs, data = scipy.io.wavfile.read(wavFileLoc)
-    print(fs)
-    print(data)
     return fs, data
-
-#imptool = guiimport()
-#fileLoc = 'PLAYPY/QTversion2/Calib/30Hz0.4vppCalib.csv'
-#data_csv = imptool.importdata(fileLoc)
-#plt.plot(data[:,0], data[:,1])
-#plt.show()
-
-#writeWav(data_csv[:, 0], data_csv[:, 1], fileLoc, 8000, scale_t=1, n_a=3)
-
-#fs, data_wav = scipy.io.wavfile.read('PLAYPY/QTversion2/Calib/30Hz0.4vppCalibFs8000ScipySw4.wav')
-
-
-#plt.subplot(211)
-#plt.plot(data_csv[:, 1])
-
-#plt.subplot(212)
-#plt.plot(data_wav)
-
-#plt.show()

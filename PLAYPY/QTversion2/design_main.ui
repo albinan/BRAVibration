@@ -25,10 +25,8 @@
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
+        <zorder>voltage_fig</zorder>
        </widget>
-      </item>
-      <item>
-       <widget class="QWidget" name="fft_fig" native="true"/>
       </item>
      </layout>
     </item>
@@ -49,6 +47,34 @@
          </size>
         </property>
        </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_3">
+        <item>
+         <widget class="QLabel" name="label_2">
+          <property name="text">
+           <string>Start time (s)</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>Stop time (s)</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <item>
+         <widget class="QDoubleSpinBox" name="start_spin"/>
+        </item>
+        <item>
+         <widget class="QDoubleSpinBox" name="stop_spin"/>
+        </item>
+       </layout>
       </item>
       <item>
        <widget class="QPushButton" name="play_button">

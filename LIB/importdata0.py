@@ -3,6 +3,7 @@ import re
 import numpy as np
 import sys
 import os
+import matplotlib.pyplot as plt
 
 class importTool():
     def __init__(self):
@@ -33,7 +34,6 @@ class importTool():
                     header = header + line + '\n'
                 else:
                     s = re.findall(self.regExpNum, line[1])
-                    print(s)
                     a = [float(i) for i in s]
                     data.extend(a)
             n = np.size(a)

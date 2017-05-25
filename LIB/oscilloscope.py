@@ -5,6 +5,9 @@ import os
 import matplotlib.pyplot as plt
 from scipy.fftpack import fft, fftfreq
 import threading
+import sys
+sys.path.append('C:/Users/ReVibe/Documents/Albin/BRAVibration/LIB')
+from playloop import WavePlayerLoop
 
 
 class Oscilloscope():
@@ -43,7 +46,7 @@ class Oscilloscope():
                          0.0000005, 0.000001, 0.000005, 0.00002,
                          0.00005, 0.0001, 0.0005, 0.001,
                          0.005, 0.02, 0.05, 0.1,
-                         0.5, 1, 5, 20, 50])
+                         0.5, 1, 2, 5, 20, 50])
         t_win = 12*t_inc
         t_set = t_inc[np.argmin(np.abs(t_win-t)) + inc]
         t_current = float(self.inst.query(':TIMebase:MAIN:SCALe?'))
@@ -269,18 +272,33 @@ class Oscilloscope():
         print(':MEASure:ITEM VRMS,CHANnel' + str(channel))
         Vrms = float(self.inst.query(
             ':MEASure:ITEM? VRMS,CHANnel' + str(channel)))
-        return Vrms
+        if Vrms > 10000000000:
+            return -1
+        else:
+            print('Vrms :', Vrms)
+            return Vrms
 
-    def record(self, rec_time, sampleRate):
-        data = []
+    def meas_VPP(self, channel):
+        print(':MEASure:ITEM VPP,CHANnel' + str(channel))
+        Vpp = float(self.inst.query(
+            ':MEASure:ITEM? VPP,CHANnel' + str(channel)))
+        return Vpp
+    def record_init(self, rec_time, sampleRate):
         self.set_wavlength(rec_time, inc=0)
         self.set_sampleRate(sampleRate)
-        time.sleep(1)
+
+    def record(self, wavFileLoc, t_start, length):
+        self.WPL = WavePlayerLoop(wavFileLoc, t_start=t_start, length=length)
+        self.run()
+        data = []
         self.inst.write('CLEAR')
+
+        self.WPL.play()  # Playing signal
         timeStamp = time.time()
         time.sleep(self.wavelength*3/4)
         self.inst.write('STOP')
         time.sleep(self.wavelength/2)
+        self.WPL.stop()
         batchsize, batches = self.get_batch()
         print('Active Channels', self.activeChannels)
         for channel in self.activeChannels:

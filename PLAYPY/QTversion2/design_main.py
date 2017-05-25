@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'design.ui'
+# Form implementation generated from reading ui file 'design_main.ui'
 #
 # Created by: PyQt5 UI code generator 5.6
 #
@@ -26,9 +26,6 @@ class Ui_MainWindow(object):
         self.signal_fig.setSizePolicy(sizePolicy)
         self.signal_fig.setObjectName("signal_fig")
         self.mplvl.addWidget(self.signal_fig)
-        self.fft_fig = QtWidgets.QWidget(self.centralwidget)
-        self.fft_fig.setObjectName("fft_fig")
-        self.mplvl.addWidget(self.fft_fig)
         self.horizontalLayout.addLayout(self.mplvl)
         self.verticalLayout_2 = QtWidgets.QVBoxLayout()
         self.verticalLayout_2.setObjectName("verticalLayout_2")
@@ -41,6 +38,24 @@ class Ui_MainWindow(object):
         self.play_list.setMaximumSize(QtCore.QSize(200, 16777215))
         self.play_list.setObjectName("play_list")
         self.verticalLayout_2.addWidget(self.play_list)
+        self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_3.setObjectName("horizontalLayout_3")
+        self.label_2 = QtWidgets.QLabel(self.centralwidget)
+        self.label_2.setObjectName("label_2")
+        self.horizontalLayout_3.addWidget(self.label_2)
+        self.label = QtWidgets.QLabel(self.centralwidget)
+        self.label.setObjectName("label")
+        self.horizontalLayout_3.addWidget(self.label)
+        self.verticalLayout_2.addLayout(self.horizontalLayout_3)
+        self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_2.setObjectName("horizontalLayout_2")
+        self.start_spin = QtWidgets.QDoubleSpinBox(self.centralwidget)
+        self.start_spin.setObjectName("start_spin")
+        self.horizontalLayout_2.addWidget(self.start_spin)
+        self.stop_spin = QtWidgets.QDoubleSpinBox(self.centralwidget)
+        self.stop_spin.setObjectName("stop_spin")
+        self.horizontalLayout_2.addWidget(self.stop_spin)
+        self.verticalLayout_2.addLayout(self.horizontalLayout_2)
         self.play_button = QtWidgets.QPushButton(self.centralwidget)
         self.play_button.setObjectName("play_button")
         self.verticalLayout_2.addWidget(self.play_button)
@@ -77,6 +92,8 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        self.label_2.setText(_translate("MainWindow", "Start time (s)"))
+        self.label.setText(_translate("MainWindow", "Stop time (s)"))
         self.play_button.setText(_translate("MainWindow", "Play"))
         self.menuFile.setTitle(_translate("MainWindow", "File"))
         self.actionOpen.setText(_translate("MainWindow", "Open"))
