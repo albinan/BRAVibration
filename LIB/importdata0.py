@@ -4,9 +4,8 @@ Tools for importing arbitrary data files
 from PyQt5 import QtWidgets
 import re
 import numpy as np
-import sys
 import os
-import matplotlib.pyplot as plt
+
 
 class importTool():
     def __init__(self):
@@ -15,6 +14,9 @@ class importTool():
         self.regExpHeader = r'[a-df-zA-DF-Z]'
 
     def fileLoc(self, fileType=None):
+        '''
+        Simple function that opens UI to retrive file location
+        '''
         try:
             file_loc, _ = QtWidgets.QFileDialog.getOpenFileName(filter=fileType)
             _, file_extension = os.path.splitext(file_loc)
@@ -27,6 +29,9 @@ class importTool():
         print('in the making')
 
     def importTextFile(self, fileLoc, sample=0):
+        '''
+        Imports arbitrary text file containing header and numbers
+        '''
         data = []
         header = ''
         with open(fileLoc) as textfile:

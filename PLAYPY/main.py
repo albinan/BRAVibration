@@ -20,6 +20,8 @@ from scipy.fftpack import fft, fftfreq, fftshift
 from scipy.signal import correlate, resample
 from design_main import Ui_MainWindow as Ui_MainWindow_main
 from main_wavimport import wavimportwindow
+
+
 class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
     def __init__(self, parent=None):
         QtWidgets.QMainWindow.__init__(self)

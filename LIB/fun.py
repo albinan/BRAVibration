@@ -1,6 +1,13 @@
 import numpy as np
+'''
+A set of utility function
+'''
+
 
 def rootMeanSquare(a):
+    '''
+    Calculates RMS for any 1D array like object
+    '''
     rms = 0
     N = np.size(a)
     for i in range(0, N):
@@ -9,15 +16,11 @@ def rootMeanSquare(a):
     rms = np.sqrt(rms)
     return rms
 
-def slices(a, n_slice, n):
-    if n_slice == 1 or n_slice == 0:
-        return a
-    a_len = np.size(a)
-    inval = np.floor(a_len/n_slice)
-    print(n*inval/a_len)
-    return a[n*inval:(n+1)*inval]
 
 def fixtimedata(t):
+    '''
+    Modifies time vector from vibration logger
+    '''
     n = len(t)
     for i in range(n-1):
         if t[i+1] < t[i]:

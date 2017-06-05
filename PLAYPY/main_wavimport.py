@@ -10,7 +10,7 @@ sys.path.append('C:/Users/ReVibe/Documents/Albin/BRAVibration/LIB')
 from importdata0 import importTool
 from dialog_wavimport import Ui_Dialog as Ui_Dialog_wavimport
 from wavaio import writeWav
-
+from fun import fixtimedata, rootMeanSquare
 
 class wavimportwindow(QtWidgets.QDialog, Ui_Dialog_wavimport):
     def __init__(self, parent=None):
@@ -21,76 +21,109 @@ class wavimportwindow(QtWidgets.QDialog, Ui_Dialog_wavimport):
 
         self.data = []  # Variable to store imported data
         self.file_loc = ''  # Variable to store file location
-        self.timeScale = self.translateTimeUnits(
-            self.unitTime_combo.currentText())  # Time scale of imported data
-        self.accScale = self.translateAccUnits(
-            self.unitAcc_combo.currentText())
+        self.na = 1  # Column with acceleration vector
+        self.nt = 0  # Column with time vector
+        self.scale_a = 1
+        self.scale_t = 1
 
     def setupSignals(self):
         self.import_button.clicked.connect(self.importData)
-        self.unitTime_combo.currentTextChanged.connect(self.isTimeCustom)
         self.unitTime_combo.currentTextChanged.connect(self.translateTimeUnits)
-        self.scaleTime_edit.textChanged.connect(self.getCustomTimeScale)
-        self.unitAcc_combo.currentTextChanged.connect(self.isAccCustom)
         self.unitAcc_combo.currentTextChanged.connect(self.translateAccUnits)
-        self.scaleAcc_edit.textChanged.connect(self.getCustomAccScale)
         self.columnTime_combo.currentTextChanged.connect(self.getColumnTime)
         self.columnAcc_combo.currentTextChanged.connect(self.getColumnAcc)
-        self.isTimeCustom_checked = False
-        self.isAccCustom_checked = False
 
     def getColumnTime(self, string):
-        self.nt = int(string)
+        print('getColumnTime')
+        self.nt = int(string) - 1
+        self.writeParamTable()
 
     def getColumnAcc(self, string):
-        self.na = int(string)
-
-    def getSampleRate(self, string):
-        self.fs = int(string)
+        print('getColumnAcc')
+        self.na = int(string) - 1
+        self.writeParamTable()
 
     def importData(self):
+        '''
+        Imports csv or txt file and visualizes appropriate data and variables
+        to determine the type of data
+        '''
         try:
             # Custom class used to import data
             imptool = importTool()
             self.file_loc, file_extention = imptool.fileLoc()
             self.data, header = imptool.importTextFile(self.file_loc)
+            self.ni, self.nj = np.shape(self.data)
+            self.translateTimeUnits(
+                self.unitTime_combo.currentText())
+            self.translateAccUnits(
+                self.unitAcc_combo.currentText())
 
             # Writes a sample in header_label and data_table
             self.sample_edit.appendPlainText(header)
-            ni, nj = np.shape(self.data)
+            self.writeDataTable()
+        except Exception as e:
+            print(e)
 
+    def writeParamTable(self):
+        try:
 
-            if ni > 20:
-                sample_size = 20
+            self.parameters_table.setRowCount(2)
+            self.parameters_table.setColumnCount(4)
+            t = self.data[:, self.nt]*self.scale_t
+            fixtimedata(t)
+            a = self.data[:, self.na]*self.scale_a
+
+            # Write sample frequency
+            self.parameters_table.setItem(0, 0, QtWidgets.QTableWidgetItem('Sample frequency (Hz)'))
+            fs = int(1/((t[-1] - t[0])/(len(t)-1)))
+            self.parameters_table.setItem(1, 0, QtWidgets.QTableWidgetItem(str(fs)))
+            # Write total time in minutes
+            self.parameters_table.setItem(0, 1, QtWidgets.QTableWidgetItem('Total time (min)'))
+            t_tot_min = int((t[-1] - t[0])/60)
+            self.parameters_table.setItem(1, 1, QtWidgets.QTableWidgetItem(str(t_tot_min)))
+            # Write rms
+            self.parameters_table.setItem(0, 2, QtWidgets.QTableWidgetItem('RMS (g)'))
+            g_rms = rootMeanSquare(a)
+            self.parameters_table.setItem(1, 2, QtWidgets.QTableWidgetItem(str(g_rms)))
+            # Write peak to peak
+            self.parameters_table.setItem(0, 3, QtWidgets.QTableWidgetItem('Peak to peak (g)'))
+            g_p2p = np.max(a)-np.min(a)
+            self.parameters_table.setItem(1, 3, QtWidgets.QTableWidgetItem(str(g_p2p)))
+        except Exception as e:
+            print(e)
+
+    def writeDataTable(self):
+        try:
+            if self.ni > 10:
+                sample_size = 10
             else:
-                sample_size = ni
-
+                sample_size = self.ni
             self.data_table.setRowCount(sample_size + 1)
-            self.data_table.setColumnCount(nj)
-            for j in range(nj):
+            self.data_table.setColumnCount(self.nj)
+            isTime = True
+            for j in range(self.nj):
                 for i in range(1, sample_size):
-                    if data[i+1, j] < data[i, j]:
-                        print('Hello')
-            #for i in range(sample_size):
-                #row_str = ''
-                #for j in range(nj):
-                    #row_str = row_str + str(self.data[i, j]) + ','
-                #row_str = row_str[:-1]
-                #self.sample_edit.appendPlainText(row_str)
-
+                    if self.data[i+1, j] < self.data[i, j]:
+                        isTime = False
+                    self.data_table.setItem(i, j,
+                                        QtWidgets.QTableWidgetItem(str(self.data[i,j])))
+                if isTime:
+                    self.data_table.setItem(0, j,
+                                        QtWidgets.QTableWidgetItem('Time'))
+                else:
+                    self.data_table.setItem(0, j,
+                                        QtWidgets.QTableWidgetItem('Acceleration'))
             self.columnAcc_combo.clear()
             self.columnTime_combo.clear()
-            for i in range(nj):
-                self.columnAcc_combo.addItem(str(i))
-                self.columnTime_combo.addItem(str(i))
-
-            self.columnAcc_combo.setCurrentIndex(1)
-            self.na = 1 # Column with acceleration vector
-            self.columnTime_combo.setCurrentIndex(0)
-            self.nt = 0 # Column with time vector
+            for i in range(self.nj):
+                self.columnAcc_combo.addItem(str(i+1))
+                self.columnTime_combo.addItem(str(i+1))
+            # Initialize column combo boxes
+            self.columnAcc_combo.setCurrentIndex(self.na)
+            self.columnTime_combo.setCurrentIndex(self.nt)
             self.columnAcc_combo.setEnabled(True)
             self.columnTime_combo.setEnabled(True)
-
         except Exception as e:
             print(e)
 
@@ -98,90 +131,43 @@ class wavimportwindow(QtWidgets.QDialog, Ui_Dialog_wavimport):
         '''
         Translates units in time combo box to scalar
         '''
-        timeScale = 0
-        if string == 'ns':
-            timeScale = 0.000001
+        scale_t = 0
+        if string == 'ChipTimeUS':
+            scale_t = 0.000001
+        elif string == 'ns':
+            scale_t = 0.000001
         elif string == 'ms':
-            timeScale = 0.001
+            scale_t = 0.001
         elif string == 's':
-            timeScale = 1
+            scale_t = 1
         elif string == 'min':
-            timeScale = 60
+            scale_t = 60
         elif string == 'h':
-            timeScale = 3600
-        elif string == 'custom':
-            try:
-                timeScale = float(self.scaleTime_edit.text())
-            except Exception:
-                timeScale = 0
-        print('TimeScale ', timeScale)
-        return(timeScale)
-
-    def isTimeCustom(self, string):
-        '''
-        Checks if user has entered custom time scale and enables edit text if
-        True.
-        '''
-        if string == 'custom':
-            self.scaleTime_edit.setEnabled(True)
-            self.isTimeCustom_checked = True
-        else:
-            self.scaleTime_edit.setEnabled(False)
-            self.isTimeCustom_checked = False
-
-    def getCustomTimeScale(self):
-        '''
-        Fetches the custom acceleration from edit text.
-        '''
-        try:
-            self.timeScale = float(self.scaleTime_edit.text())
-        except Exception:
-            self.timeScale = 0
-        print(self.timeScale)
+            scale_t = 3600
+        print('scale_t ', scale_t)
+        self.scale_t = scale_t
+        self.writeParamTable()
 
     def translateAccUnits(self, string):
         '''
         Translates units in time acceleration combo box to scalar
         '''
-        accScale = 0
+        scale_a = 0
         if string == 'g':
-            accScale = 1
+            scale_a = 1
         elif string == 'ms^2':
-            accScale = 1/9.81
-        elif string == 'custom':
-            try:
-                accScale = float(self.scaleAcc_edit.text())
-            except Exception:
-                accScale = 0
-        print('accScale ', accScale)
-        return(accScale)
-
-    def isAccCustom(self, string):
-        '''
-        Checks if user has entered custom acceleration scale and enables edit text if
-        True.
-        '''
-        if string == 'custom':
-            self.scaleAcc_edit.setEnabled(True)
-            self.isAccCustom_checked = True
-        else:
-            self.scaleAcc_edit.setEnabled(False)
-            self.isAccCustom_checked = False
-
-    def getCustomAccScale(self):
-        try:
-            self.accScale = float(self.scaleAcc_edit.text())
-        except Exception:
-            self.accScale = 0
-        print(self.accScale)
+            scale_a = 1/9.81
+        print('scale_a ', scale_a)
+        self.scale_a = scale_a
+        self.writeParamTable()
 
     def writeWavFile(self):
         print('File location: ', self.file_loc)
         print('Column with time data: ', self.nt)
         print('Column with acceleration data: ', self.na)
         print('Sample rate: ', self.fs)
-        print('Scale factor time: ', self.timeScale)
-        print('Scale factor acceleration', self.accScale)
+        print('Scale factor time: ', self.scale_t)
+        print('Scale factor acceleration', self.scale_a)
         t = self.data[:, self.nt]
         a = self.data[:, self.na]
         writeWav(
@@ -189,8 +175,8 @@ class wavimportwindow(QtWidgets.QDialog, Ui_Dialog_wavimport):
             a,
             self.file_loc,
             self.fs,
-            self.timeScale,
-            self.accScale,
+            self.scale_t,
+            self.scale_a,
             )
         msg2 = QtWidgets.QMessageBox()
         msg2.setText('Finished writing wav file')
