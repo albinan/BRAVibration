@@ -9,7 +9,7 @@ sys.path.append('C:/Users/ReVibe/Documents/Albin/MasterSnake/LIB')
 sys.path.append('C:/Users/ReVibe/Documents/Albin/MasterSnake/LIB/wavio')
 import wavio
 from importdata0 import importTool
-from fun import rootMeanSquare
+from fun import rootMeanSquare, fixtimedata
 from scipy.signal import resample
 import scipy.io.wavfile
 import struct
@@ -20,12 +20,14 @@ def writeWav(t_i, x_i, csvFileLoc, fs_f=41000, scale_t=1, scale_a=1, fileAdd='',
     ##INITIAL SIGNAL
     x_i = (x_i - np.mean(x_i))*scale_a  # initial acceleration vector
     t_i = (t_i - t_i[0])*scale_t  # final acceleration vector
-
+    fixtimedata(t_i)
     # Parameters for initial signal
     n_i = np.size(t_i)
+
     dt_i = (t_i[-1]-t_i[0])/(n_i-1)
     fs_i = 1/dt_i
     xrms_i = rootMeanSquare(x_i)
+    
     x_i_max = np.max(np.abs(x_i))
 
     # Resample time vector in case of strange data

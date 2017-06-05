@@ -16,3 +16,9 @@ def slices(a, n_slice, n):
     inval = np.floor(a_len/n_slice)
     print(n*inval/a_len)
     return a[n*inval:(n+1)*inval]
+
+def fixtimedata(t):
+    n = len(t)
+    for i in range(n-1):
+        if t[i+1] < t[i]:
+            t[i+1:] = t[i+1:] + t[i]

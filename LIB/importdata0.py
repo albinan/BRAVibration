@@ -1,3 +1,6 @@
+'''
+Tools for importing arbitrary data files
+'''
 from PyQt5 import QtWidgets
 import re
 import numpy as np
@@ -31,7 +34,7 @@ class importTool():
                 if line[0] > sample and sample != 0:
                     break
                 if re.search(self.regExpHeader, line[1]):
-                    header = header + line + '\n'
+                    header = header + line[1] + '\n'
                 else:
                     s = re.findall(self.regExpNum, line[1])
                     a = [float(i) for i in s]

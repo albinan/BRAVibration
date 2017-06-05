@@ -51,7 +51,7 @@ class WavePlayerLoop(threading.Thread):
                              , output=True)
 
     def run(self):
-        time.sleep(2) # Waiting for  oscilloscoe to clear
+        time.sleep(1.5) # Waiting for  oscilloscoe to clear
         # PLAYBACK LOOP
         startpos = int(np.round(self.rate*self.t_start))
         self.wf.setpos(startpos)

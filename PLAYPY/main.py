@@ -3,6 +3,7 @@ from PyQt5 import QtWidgets, QtCore
 import sys
 import numpy as np
 import time
+import pyaudio
 import os.path
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
@@ -18,173 +19,14 @@ from wavaio import readWav, writeWav
 from scipy.fftpack import fft, fftfreq, fftshift
 from scipy.signal import correlate, resample
 from design_main import Ui_MainWindow as Ui_MainWindow_main
-from dialog_wavimport import Ui_Dialog as Ui_Dialog_wavimport
-
-
-#Ui_MainWindow, QMainWindow = loadUiType('C:/Users/ReVibe/Documents/Albin/MasterSnake/PLAYPY/QTversion2/design.ui')
-class wavimportwindow(QtWidgets.QDialog, Ui_Dialog_wavimport):
-    def __init__(self, parent=None):
-        QtWidgets.QDialog.__init__(self)
-        self.data = []
-        self.setupUi(self)
-        self.setupSignals()
-        self.fs = int(self.fs_combo.currentText())
-        self.translateTimeUnits(
-            self.unitTime_combo.currentText())
-        self.translateAccUnits(
-            self.unitAcc_combo.currentText())
-
-    def setupSignals(self):
-        self.import_button.clicked.connect(self.importData)
-        self.fs_combo.currentTextChanged.connect(self.getSampleRate)
-        self.unitTime_combo.currentTextChanged.connect(self.isTimeCustom)
-        self.unitTime_combo.currentTextChanged.connect(self.translateTimeUnits)
-        self.scaleTime_edit.textChanged.connect(self.getCustomTimeScale)
-        self.unitAcc_combo.currentTextChanged.connect(self.isAccCustom)
-        self.unitAcc_combo.currentTextChanged.connect(self.translateAccUnits)
-        self.scaleAcc_edit.textChanged.connect(self.getCustomAccScale)
-        self.columnTime_combo.currentTextChanged.connect(self.getColumnTime)
-        self.columnAcc_combo.currentTextChanged.connect(self.getColumnAcc)
-        self.isTimeCustom_checked = False
-        self.isAccCustom_checked = False
-
-    def getColumnTime(self, string):
-        self.nt = int(string)
-
-    def getColumnAcc(self, string):
-        self.na = int(string)
-
-    def getSampleRate(self, string):
-        self.fs = int(string)
-
-    def importData(self):
-
-        try:
-            imptool = importTool()
-            self.file_loc, file_extention = imptool.fileLoc()
-
-            self.data, header = imptool.importTextFile(self.file_loc)
-
-            self.sample_edit.appendPlainText(header)
-
-            ni, nj = np.shape(self.data)
-            for i in range(10):
-                row_str = ''
-                for j in range(nj):
-                    row_str = row_str + str(self.data[i, j]) + ','
-                row_str = row_str[:-1]
-                self.sample_edit.appendPlainText(row_str)
-
-            self.columnAcc_combo.clear()
-            self.columnTime_combo.clear()
-            for i in range(nj):
-                self.columnAcc_combo.addItem(str(i))
-                self.columnTime_combo.addItem(str(i))
-
-
-            self.columnAcc_combo.setCurrentIndex(1)
-            self.na = 1 # Column with acceleration vector
-            self.columnTime_combo.setCurrentIndex(0)
-            self.nt = 0 # Column with time vector
-            self.columnAcc_combo.setEnabled(True)
-            self.columnTime_combo.setEnabled(True)
-
-        except Exception as e:
-            print(e)
-
-    def translateTimeUnits(self, string):
-        print('string', string)
-        if string == 'ns':
-            self.timeScale = 0.000001
-        elif string == 'ms':
-            self.timeScale = 0.001
-        elif string == 's':
-            self.timeScale = 1
-        elif string  == 'min':
-            self.timeScale = 60
-        elif string == 'h':
-            self.timeScale = 3600
-        elif string == 'custom':
-            try:
-                self.timeScale = float(self.scaleTime_edit.text())
-            except Exception:
-                self.timeScale = 0
-
-        print('timeScale ', self.timeScale)
-
-    def isTimeCustom(self, string):
-        if string == 'custom':
-            self.scaleTime_edit.setEnabled(True)
-            self.isTimeCustom_checked = True
-        else:
-            self.scaleTime_edit.setEnabled(False)
-            self.isTimeCustom_checked = False
-
-    def getCustomTimeScale(self):
-        try:
-            self.timeScale = float(self.scaleTime_edit.text())
-        except Exception:
-            self.timeScale = 0
-        print(self.timeScale)
-
-    def translateAccUnits(self, string):
-        if string == 'g':
-            self.accScale = 1
-        elif string == 'ms^2':
-            self.accScale = 1/9.81
-        elif string == 'custom':
-            try:
-                self.accScale = float(self.scaleAcc_edit.text())
-            except Exception:
-                self.accScale = 0
-
-        print('accScale ', self.accScale)
-
-    def isAccCustom(self, string):
-        if string == 'custom':
-            self.scaleAcc_edit.setEnabled(True)
-            self.isAccCustom_checked = True
-        else:
-            self.scaleAcc_edit.setEnabled(False)
-            self.isAccCustom_checked = False
-
-    def getCustomAccScale(self):
-        try:
-            self.accScale = float(self.scaleAcc_edit.text())
-        except Exception:
-            self.accScale = 0
-        print(self.accScale)
-
-    def writeWavFile(self):
-        print('File location: ', self.file_loc)
-        print('Column with time data: ', self.nt)
-        print('Column with acceleration data: ', self.na)
-        print('Sample rate: ', self.fs)
-        print('Scale factor time: ', self.timeScale)
-        print('Scale factor acceleration', self.accScale)
-        t = self.data[:, self.nt]
-        a = self.data[:, self.na]
-        writeWav(
-            t,
-            a,
-            self.file_loc,
-            self.fs,
-            self.timeScale,
-            self.accScale,
-            )
-        msg2 = QtWidgets.QMessageBox()
-        msg2.setText('Finished writing wav file')
-        msg2.exec_()
-
+from main_wavimport import wavimportwindow
 class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
     def __init__(self, parent=None):
         QtWidgets.QMainWindow.__init__(self)
         self.setupUi(self)
-
         self.wavFileLocations = []
         self.calibNumPeak = []
         self.calibNumRms = []
-
         self.actionOpen.triggered.connect(self.open_file)
         self.play_button.clicked.connect(self.play_signal)
         self.actionClear.triggered.connect(self.clear_files)
@@ -199,27 +41,24 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
         self.scope = Oscilloscope(activeChannels=[1, 2])
 
     def set_interval(self):
-        print('hello')
         if self.shouldIreallyspin:
-            print('adasdasdasdasda')
             try:
                 self.t_start = self.start_spin.value()
                 self.t_stop = self.stop_spin.value()
                 n_start = np.argmin(np.abs(self.t_start-self.t_rec))
                 n_stop = np.argmin(np.abs(self.t_stop-self.t_rec))
-                self.a_rec_prime = self.a_rec[n_start:n_stop]
-                self.t_rec_prime = self.t_rec[n_start:n_stop]
+                self.a_rec_inval = self.a_rec[n_start:n_stop]
+                self.t_rec_inval = self.t_rec[n_start:n_stop]
 
-                self.n_rec = np.size(self.a_rec_prime)
+                self.n_rec = np.size(self.a_rec_inval)
                 self.dt_rec = 1/self.fs_rec
                 self.t_tot_rec = self.dt_rec*(self.n_rec-1)
 
-                self.addsignalplot(self.t_rec_prime, self.a_rec_prime)
+                self.addsignalplot(self.t_rec_inval, self.a_rec_inval)
             except Exception as e:
                 print(e)
 
     def itemChanged(self):
-        print('WABALABADUBBDUBB')
         try:
             #Calibrates data
             self.n_d = int(self.play_list.row(self.play_list.currentItem())) # Get current data in playlist
@@ -259,6 +98,7 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
         self.fig_signal = plt.figure(figsize=(self.signal_fig.width()/150, self.signal_fig.height()/150), dpi=150)
         self.ax_signal = self.fig_signal.add_subplot(111)
         self.ax_signal.plot(t, a)
+        self.ax_signal.set_xlim([t[0], t[-1]])
         self.ax_signal.set_xlabel('Time (s)')
         self.ax_signal.set_ylabel('Acceleration (g)')
         self.ax_signal.set_title('Recorded signal')
@@ -268,12 +108,9 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
         self.signalCanvas.setParent(self.signal_fig)
         self.signalCanvas.draw()
         self.signalCanvas.show()
+    def resetplot(self, t, a):
+        self.addsignalplot(t, a)
 
-    def clearsignalplot(self):
-        print('asd')
-    def ifprint(self, val):
-        if self.isPrint:
-            print(val)
     def open_file(self):
         imptool = importTool()
         self.file_loc, file_extention = imptool.fileLoc('*.wav')
@@ -314,41 +151,66 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
 
     def calibrate(self):
         try:
-            calibWavFileLoc = 'PLAYPY/QTversion2/Calib/30Hz0.4vppCalibresampled_Fs8000.wav'
-            WPL_calib = WavePlayerLoop(calibWavFileLoc)
-            WPL_calib.play()
+            eigfreq, ok = QtWidgets.QInputDialog.getInt(self,"Kalibrering 1","Skriv in approximativ egenfrekvens för harvestern")
+            #calibWavFileLoc = 'PLAYPY/QTversion2/Calib/30Hz0.4vppCalibresampled_Fs8000.wav'
+            #WPL_calib = WavePlayerLoop(calibWavFileLoc)
+            #WPL_calib.play()
             self.scope.set_wavlength(0.5)
 
             n_d = int(self.play_list.row(self.play_list.currentItem()))
             QtWidgets.QMessageBox.about(
-                self, 'Kalibrering',
-                'Kalibrering för: \n' +
-                str(self.wavFileLocations[n_d]) + '\n'
+                self, 'Kalibrering 2',
                 'Öka volym och förstärkning tills dess att accelerationen \n' +
-                'är ' + str(self.calibNumPeak[n_d]) + 'V PEAK TO PEAK på oscilloscopet.')
+                'är ' + str(self.calibNumPeak[n_d]*np.sqrt(2)/5) + 'V PEAK TO PEAK på oscilloscopet. \n'
+                'Justera den vertikala skalan så att båda signalerna passar med lite marginal')
+            p = pyaudio.PyAudio()
 
+            volume = 0.2     # range [0.0, 1.0]
+            fs = 44100       # sampling rate, Hz, must be integer
+            duration = 120   # in seconds, may be float
+            f = eigfreq        # sine frequency, Hz, may be float
+
+            # generate samples, note conversion to float32 array
+            samples = (np.sin(2*np.pi*np.arange(fs*duration)*f/fs)).astype(np.float32)
+
+            # for paFloat32 sample values must be in range [-1.0, 1.0]
+            stream = p.open(format=pyaudio.paFloat32,
+                channels=1,
+                rate=fs,
+                output=True)
+
+            # play. May repeat with different volume values (if done interactively)
+            stream.write(volume*samples)
+
+            stream.stop_stream()
+            stream.close()
+
+            p.terminate()
         except Exception as e:
             print(e)
-            WPL_calib.stop()
-        WPL_calib.stop()
+            #WPL_calib.stop()
+        #WPL_calib.stop()
 
     def play_signal(self):
-        self.isPrint = True
+        self.resetplot(self.t_rec_inval, self.a_rec_inval)
         try:
             # Playing signal in "length" sequences at the time
             overlap = 0.5  # Overlap between sequences in seconds
-            length = 21  # Length of sequence in seconds
-            t_init = self.t_rec_prime[0]
-            t_stop = self.t_rec_prime[-1]
+            length = 10  # Length of sequence in seconds
+            t_init = self.t_rec_inval[0]
+            t_stop = self.t_rec_inval[-1]
             flag = True  # Flag for looping sequences
             i = 0  # index for looping
             breakFlagWindow = False # Boolean used to replay the same signal if the window is too small.
             breakNoData = False # Boolean used to replay the same signal if failed to transfer data.
+            breakEmptyArray = False
+            breakDifferentArraySizes = False
+            breakNoiseData = False
             a_rep_full = []  # Array with concatenated acceleration sequences in g
             t_rep_full = []  # Array with concatenated time sequences in seconds
-            V_rep_full = []
-            self.ifprint('Starting while loop')
+            V_rep_full = []  # Array with concatenated measured voltage sequences
             self.scope.record_init(length, self.fs_rec)
+
             while flag:
                 t_start = t_init + i*length - i*overlap
                 print('t_start: ', t_start, 't_stop: ', t_start+length)
@@ -357,17 +219,41 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
                 # data_rep[0][:, 1] contains output voltage array
                 # data_rep[1][:, 0] contains time array
                 # data_rep[1][:, 1] contains acceleration array
+                n_start_rec = np.argmin(np.abs(t_start - self.t_rec)) # Starting frame for the sequence
+                n_stop_rec = np.argmin(np.abs(t_start+length - self.t_rec)) # Ending frame for the sequence
+                Vpp_rec_int = 2*np.max(np.abs(self.a_rec[n_start_rec:n_stop_rec]))
 
-                data_rep, timeStamp_rep = self.scope.record(self.wavFileLoc, t_start, length)
+                ## Playing signal once to adjust window size, then playing the same signal again
+                self.scope.set_voltagescale(2*Vpp_rec_int, channel=2) # Setting acceleration scale to maximum of recorded signal
+                self.scope.set_voltagescale(99999, channel=1) # Uncertenty about the voltage output. Setting window to maximum size.
+                data_rep, timeStamp_rep = self.scope.record(self.wavFileLoc, t_start, length) # Recording signal
                 print('Recording sampleRate: ', self.scope.get_sampleRate())
-
                 # Signals are not formated to V. This loop is going through channels
                 # 1 and 2 and formats according to measured RMS
                 for j in range(0, 2):
-                    print(j)
-                    data_rep[j][:, 1] = data_rep[j][:, 1] - np.mean(data_rep[j][:, 1])
-                    q = self.scope.meas_RMS(channel=j+1)
-                    Vpp = self.scope.meas_VPP(channel=j+1)
+                    data_rep[j][:, 1] = data_rep[j][:, 1] - np.mean(data_rep[j][:, 1]) # Removing mean from signal
+                    q = self.scope.meas_RMS(channel=j+1) # Meassuring rms of signal
+                    Vpp = self.scope.meas_VPP(channel=j+1) # Meassuring peak to peak voltage of signal
+                    if Vpp > 99999: # If signal is outside window, Vpp is approx 1E37.
+                        Vpp = self.scope.get_voltagescale(channel=j+1)
+                        self.scope.set_voltagescale(Vpp, channel=j+1, margin=True) # Setting voltagescale to one less than it was before
+                    else:
+                        self.scope.set_voltagescale(Vpp, channel=j+1, margin=True)
+
+                ## Playing signal again with corrected window size
+                data_rep, timeStamp_rep = self.scope.record(self.wavFileLoc, t_start, length)
+
+                fs_rep = self.scope.get_sampleRate() # Sample frequency of recorded signal
+                dt_rep = 1/fs_rep
+                n_length = int(np.round(length*fs_rep)) # Number of frames in signal (including overlap)
+                n_overlap = int(np.round(overlap*fs_rep/2)) # Number of overlapping frames
+                # Signals are not formated to V. This loop is going through channels
+                # 1 and 2 and formats according to measured RMS
+                for j in range(0, 2):
+                    data_rep[j][:, 1] = data_rep[j][:, 1] - np.mean(data_rep[j][:, 1]) # Removing mean from signal
+                    q = self.scope.meas_RMS(channel=j+1) # Measuring rms
+                    Vpp = self.scope.meas_VPP(channel=j+1) # Measuring peak to peak voltage
+
                     # If the RMS could not be meassured the function returns -1.
                     # The cause is most likely that the window on the oscilloscope
                     # is too narrow. This raises a flag and the sequence will
@@ -375,48 +261,58 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
                     if q == -1:
                         print('Could not measure rms')
                         breakFlagWindow = True
-                    rms = rootMeanSquare(data_rep[j][:, 1])
-                    print('rms: ', rms)
-                    if data_rep[j][:, 1] == []:
+                    elif np.size(data_rep[j][:, 1]) == 0:
                         print('Data array is empty')
                         breakNoData = True
+                    #elif Vpp < 0.1:
+                    #    breakNoiseData = True
                     else:
+                        # Rescaling measured signal to have correct rms
+                        rms = rootMeanSquare(data_rep[j][:, 1]) # Calculating rms from measured signal
                         q = q/rms
                         data_rep[j][:, 1] = data_rep[j][:, 1]*q
-                        print('rmsnew: ', rootMeanSquare(data_rep[j][:, 1]))
 
+                if np.size(data_rep[1][:, 1]) != np.size(data_rep[0][:, 1]):
+                    print('Different array sizes')
+                    breakDifferentArraySizes = True
+
+                # All the break flags fixes the appropriate issue and replays
+                # the sequence
                 if breakFlagWindow:
-                    QtWidgets.QMessageBox.about(
-                        self, 'Error','Ändra den vertikala skalan så att signalen får plats.')
+                    # Reducing windows size
+                    for j in range(0, 2):
+                        print(j)
+                        Vpp = self.scope.meas_VPP(channel=j+1)
+                        if Vpp > 100000:
+                            Vpp = self.scope.get_voltagescale(channel=j+1)
+                            self.scope.set_voltagescale(Vpp, channel=j+1, margin=True)
+                        else:
+                            self.scope.set_voltagescale(Vpp, channel=j+1, margin=True)
                     breakFlagWindow = False
-                elif breakNoData:
-                    print('Trying again')
                     breakNoData = False
-                elif Vpp < 0.5:
-                    #if (t_start + length) > t_stop:
-                    #    print('Flag is false')
-                    #    flag = False
-                    #    n_end = (self.t_tot_rec-t_start+t_init)*fs_rep
-                    #    t_rep = t_rep[n_overlap:n_end]
-                    #    t_rep = np.linspace(t_start + overlap, self.t_tot_rec-t_start+t_init, n_end)
-                    #elif i==0:
-                    #    t_rep = np.linspace(t_start, t_start + length-overlap, (t_start + length - overlap)*fs_rep)
-                    #    print('EERRRR')
-                    #    print(t_start + length, t_stop)
-                    #else:
-                    #    t_rep = np.linspace(t_start + overlap, t_start + length-overlap, (t_start + length - 2*overlap)*fs_rep)
-
-                    #a_rep = np.zeros(np.shape(t_rep))
-                    #V_rep = np.zeros(np.shape(t_rep))
-                    #t_rep_full.extend(t_rep)
-                    #a_rep_full.extend(a_rep)
-                    #V_rep_full.extend(V_rep)
-                    print('boop')
+                    breakDifferentArraySizes = False
+                    breakNoiseData = False
+                elif breakNoData or breakEmptyArray or breakDifferentArraySizes:
+                    print('Trying again')
+                    breakFlagWindow = False
+                    breakNoData = False
+                    breakDifferentArraySizes = False
+                    breakNoiseData = False
+                elif breakNoiseData:
+                    print('Noise data')
+                    if (t_start + length) > t_stop:
+                        print('Flag is false')
+                        flag = False
+                    i = i + 1
+                    breakFlagWindow = False
+                    breakNoData = False
+                    breakDifferentArraySizes = False
+                    breakNoiseData = False
                 else:
                     # Custom variables for more straight forward code
                     t_rep = data_rep[1][:, 0]  # Time array for replayed sequence in seconds
-                    a_rep = data_rep[1][:, 1]  # Acceleration array for replayed sequence in g
-                    V_rep = data_rep[0][:, 1]  # Output voltage array for replayed sequence
+                    a_rep = data_rep[1][:, 1]  - np.mean(data_rep[1][:, 1])# Acceleration array for replayed sequence in g
+                    V_rep = data_rep[0][:, 1] - np.mean(data_rep[0][:, 1]) # Output voltage array for replayed sequence
 
                     # Parameters for the replayed signal
                     t_tot_rep = t_rep[-1]-t_rep[0]
@@ -431,6 +327,7 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
                     n_cross = self.fs_rec*t_tot_rep
 
                     # Resampling signal to n_cross elements
+                    print('Resampling signal')
                     a_rep_cross = resample(a_rep, n_cross)
                     # Creating time array for resampled signal
                     t_rep_cross = np.linspace(0, 1, n_cross)*t_tot_rep
@@ -440,59 +337,61 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
                     # cross correlation between the replayed sequence and the entire
                     # recorded signal. We know that the replayed should align somewhere
                     # between t_start and t_start + length.
-                    n_start = np.argmin(np.abs(t_start - self.t_rec_prime))
-                    n_stop = np.argmin(np.abs((t_start+length)-self.t_rec_prime))
+                    n_start_rec_cross = np.argmin(np.abs(t_start - self.t_rec_inval))
+                    n_stop_rec_cross = np.argmin(np.abs((t_start+length)-self.t_rec_inval))
 
-                    # Im not entirely sure why this works.
                     # t_shift is the time the replayed array should be shifted in order
                     # to match with the recorded signal.
 
-                    # Fix this if statement later
-
-                    t_shift = (np.argmax(correlate(self.a_rec_prime, a_rep_cross)) - len(a_rep_cross))*self.dt_rec
+                    print('Calculating time shift')
+                    t_shift = (np.argmax(correlate(np.abs(self.a_rec_inval[n_start_rec_cross:n_stop_rec_cross]), np.abs(a_rep_cross))) - len(a_rep_cross) + n_start_rec_cross)*self.dt_rec
                     print('shift: ', t_shift)
-
                     t_break = t_start-t_shift-t_init
-                    print('t_break: ', t_break)
                     n = int(np.round(t_break*fs_rep))
-                    print('n:', n)
-                    print(np.shape(t_rep))
-                    print('111')
-                    print(np.shape(t_rep))
-                    t_rep = t_rep[n:]
-                    t_rep = t_rep - t_rep[0]
-                    t_rep = t_rep + t_start
-                    a_rep = a_rep[n:]
-                    V_rep = V_rep[n:]
-
                     n_rep = len(t_rep)
-                    n_length = int(np.round(length*fs_rep))
-                    print('112')
-                    t_rep = t_rep[:n_length]
-                    a_rep = a_rep[:n_length]
-                    V_rep = V_rep[:n_length]
 
-                    n_overlap = int(np.round(overlap*fs_rep/2))
-                    if (t_start + length) > t_stop:
-                        print('Flag is false')
-                        flag = False
-                        n_end = (self.t_tot_rec-t_start+t_init)*fs_rep
-                        t_rep = t_rep[n_overlap:n_end]
-                        a_rep = a_rep[n_overlap:n_end]
-                        V_rep = V_rep[n_overlap:n_end]
-                    elif i==0:
-                        t_rep = t_rep[:-n_overlap]
-                        a_rep = a_rep[:-n_overlap]
-                        V_rep = V_rep[:-n_overlap]
-                        print('EERRRR')
-                        print(t_start + length, t_stop)
+
+                    if n > np.size(t_rep):
+                        print('Cant find sequence')
+                        t_rep = np.linspace(0, 1, n_length-2*n_overlap)*(length-2*overlap) + t_end_check + dt_check
+                        a_rep = np.zeros(np.size(t_rep))
+                        V_rep = np.zeros(np.size(V_rep))
                     else:
-                        t_rep = t_rep[n_overlap:-n_overlap]
-                        a_rep = a_rep[n_overlap:-n_overlap]
-                        V_rep = V_rep[n_overlap:-n_overlap]
+                        t_rep = t_rep[n:]
+                        t_rep = t_rep - t_rep[0]
+                        t_rep = t_rep + t_start
+                        a_rep = a_rep[n:]
+                        V_rep = V_rep[n:]
+                        t_rep = t_rep[:n_length]
+                        a_rep = a_rep[:n_length]
+                        V_rep = V_rep[:n_length]
 
-                    self.ax_signal.plot(t_rep, a_rep)
-                    self.signalCanvas.draw()
+
+                        if (t_start + length) > t_stop:
+                            print('Flag is false')
+                            flag = False
+                            n_end = (self.t_tot_rec-t_start+t_init)*fs_rep
+                            if i == 0:
+                                t_rep = t_rep[:n_end]
+                                a_rep = a_rep[:n_end]
+                                V_rep = V_rep[:n_end]
+                            else:
+                                t_rep = t_rep[n_overlap:n_end]
+                                a_rep = a_rep[n_overlap:n_end]
+                                V_rep = V_rep[n_overlap:n_end]
+                        elif i==0:
+                            t_rep = t_rep[:-n_overlap]
+                            a_rep = a_rep[:-n_overlap]
+                            V_rep = V_rep[:-n_overlap]
+                            print(t_start + length, t_stop)
+                        else:
+                            t_rep = t_rep[n_overlap:-n_overlap]
+                            a_rep = a_rep[n_overlap:-n_overlap]
+                            V_rep = V_rep[n_overlap:-n_overlap]
+
+                        self.ax_signal.plot(t_rep, a_rep)
+                        self.signalCanvas.draw()
+
                     t_rep_full.extend(t_rep)
                     a_rep_full.extend(a_rep)
                     V_rep_full.extend(V_rep)
@@ -500,9 +399,21 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
                 #flag = False
             t_rep_full = np.asarray(t_rep_full)
             a_rep_full = np.asarray(a_rep_full)
-            a_rep_full = a_rep_full - np.mean(a_rep_full)
-            V_rep_full = np.asarray(V_rep_full)
-            V_rep_full = V_rep_full - np.mean(V_rep_full)
+
+            #if np.abs(t_rep_full[0] - self.t_start) > 1.5*dt_rep:
+            #    print('First sequence empty')
+            #    n_add_start = self.fs_rec*(t_rep_full[0] - self.t_start)
+            #    t_add_start = np.linspace(0, 1)
+            #if np.abs(t_rep_full[-1] - self.t_end) > 1.5*dt_rep:
+            #    print('Last sequence empty')
+            #a_rep_full = a_rep_full - np.mean(a_rep_full)
+            #V_rep_full = np.asarray(V_rep_full)
+            #V_rep_full = V_rep_full - np.mean(V_rep_full)
+
+            np.savetxt(self.wavFileLoc[:-4] + str(time.strftime("%Y_%m_%d_%H_%M_%S", time.gmtime())) + '.csv'
+                , np.transpose(np.vstack((t_rep_full, a_rep_full, V_rep_full)))
+                , header='time(s),acc(g),output (V)'
+                , delimiter=',')
             print('shapetrep: ', np.shape(t_rep_full))
 
             #fft_rep = []
@@ -517,20 +428,20 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
             #    print('FFTSHAPE0', np.shape(fft_rep))
             # Calculating FFT for recorded signal
             #self.freq_rec = fftfreq(self.n_rec, self.dt_rec)
-            #self.fft_rec = fft(self.a_rec_prime)
+            #self.fft_rec = fft(self.a_rec_inval)
             #self.freq_rec = np.reshape(self.freq_rec, (self.n_rec, 1))
             #self.fft_rec = np.reshape(self.fft_rec, (self.n_rec, 1))
             #self.fft_rec = np.hstack((self.freq_rec, self.fft_rec))
 
             # Plotting
             #fig_signal = plt.figure(figsize=(8.27, 11.69), dpi=150)
-            rms_rec = rootMeanSquare(self.a_rec_prime)
+            rms_rec = rootMeanSquare(self.a_rec_inval)
             #ax_recsignal = fig_signal.add_subplot(211)
-            #ax_recsignal.plot(self.t_rec_prime, self.a_rec_prime,
+            #ax_recsignal.plot(self.t_rec_inval, self.a_rec_inval,
             #                   label='RMS: ' + str(rms_rec))
             #ax_recsignal.grid(True)
             #ax_recsignal.set_title('Recorded signal')
-            #ax_recsignal.set_xlim([self.t_rec_prime[0], self.t_rec_prime[-1]])
+            #ax_recsignal.set_xlim([self.t_rec_inval[0], self.t_rec_inval[-1]])
             #ax_recsignal.legend()
             #np.savetxt('Recorded.csv', [t_rec, a_rec], delimiter=',')
             #rms_rep = rootMeanSquare(a_rep_full)
@@ -540,7 +451,7 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
             #                  label='RMS: ' + str(rms_rep))
             #ax_repsignal.grid(True)
             #ax_repsignal.set_title('Replayed signal')
-            #ax_repsignal.set_xlim([self.t_rec_prime[0], self.t_rec_prime[-1]])
+            #ax_repsignal.set_xlim([self.t_rec_inval[0], self.t_rec_inval[-1]])
             #ax_repsignal.legend()
             #print('saving')
             #np.savetxt('Replayed.csv', data_rep[1], delimiter=',')
@@ -598,7 +509,7 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
 
             fig_signal_response = plt.figure(figsize=(8.27, 11.69), dpi=150)
             rms_g = rms_rep
-            fig_signal_response.suptitle('Recording at approx.' + str(int(np.round(100*rms_rep/rms_rec))) + '% signal strength', fontweight='bold', fontsize=14)
+            fig_signal_response.suptitle('Recording at approx. ' + str(int(np.round(100*rms_rep/rms_rec))) + '% signal strength', fontweight='bold', fontsize=14)
             ax_signal_g = fig_signal_response.add_subplot(211)
             ax_signal_g.plot(t_rep_full, a_rep_full,
                               label='RMS: ' + str(rms_g) + ' g', linewidth=0.5)

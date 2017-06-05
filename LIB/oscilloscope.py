@@ -181,13 +181,21 @@ class Oscilloscope():
 
         return 1
 
-    def set_voltagescale(self, V, channel):
+    def set_voltagescale(self, V, channel, margin=False):
         try:
             V_win = np.array(
                              [0.001, 0.002, 0.005, 0.01,
                               0.02, 0.05, 0.1, 0.2, 0.5,
                               1, 2, 5, 10])
-            V_set = V_win[np.argmin(np.abs(V_win-V/8))]
+            if margin:
+                n_set = np.argmin(np.abs(V_win-V/8))
+                if V > V_win[n_set]:
+                    V_set = V_win[n_set + 1]
+                else:
+                    V_set = V_win[n_set]
+            else:
+                V_set = V_win[np.argmin(np.abs(V_win-V/8))]
+
             self.inst.write(':CHANnel' + str(channel) + ':SCALe ' + str(V_set))
         except Exception as e:
             print(e)
