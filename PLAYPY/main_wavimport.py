@@ -51,7 +51,7 @@ class wavimportwindow(QtWidgets.QDialog, Ui_Dialog_wavimport):
         try:
             # Custom class used to import data
             imptool = importTool()
-            self.file_loc, file_extention = imptool.fileLoc()
+            self.file_loc, file_extention = imptool.file_loc_UI()
             self.data, header = imptool.importTextFile(self.file_loc)
             self.ni, self.nj = np.shape(self.data)
             self.translateTimeUnits(

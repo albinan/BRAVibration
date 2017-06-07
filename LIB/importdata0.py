@@ -13,7 +13,7 @@ class importTool():
         self.regExpNum = r'[+\-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+\-]?\d+)?'
         self.regExpHeader = r'[a-df-zA-DF-Z]'
 
-    def fileLoc(self, fileType=None):
+    def file_loc_UI(self, fileType=None):
         '''
         Simple function that opens UI to retrive file location
         '''
@@ -28,7 +28,7 @@ class importTool():
     def importBinary(self, fileLoc, dataFormat):
         print('in the making')
 
-    def importTextFile(self, fileLoc, sample=0):
+    def importDelimited(self, fileLoc, sample=0):
         '''
         Imports arbitrary text file containing header and numbers
         '''
