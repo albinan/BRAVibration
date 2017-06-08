@@ -84,7 +84,7 @@ class wavimportwindow(QtWidgets.QDialog, Ui_Dialog_wavimport):
             self.parameters_table.setItem(1, 1, QtWidgets.QTableWidgetItem(str(t_tot_min)))
             # Write rms
             self.parameters_table.setItem(0, 2, QtWidgets.QTableWidgetItem('RMS (g)'))
-            g_rms = rootMeanSquare(a)
+            g_rms = rootMeanSquare(a - np.mean(a))
             self.parameters_table.setItem(1, 2, QtWidgets.QTableWidgetItem(str(g_rms)))
             # Write peak to peak
             self.parameters_table.setItem(0, 3, QtWidgets.QTableWidgetItem('Peak to peak (g)'))

@@ -62,13 +62,13 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
 
     def itemChanged(self):
         try:
-            #Calibrates data
+            # Calibrates data
             self.n_d = int(self.play_list.row(self.play_list.currentItem())) # Get current data in playlist
-            if self.n_d == -1: # If nothing is selected, return 0 error
+            if self.n_d == -1:  # If nothing is selected, return 0 error
                 return 0
-            self.wavFileLoc = self.wavFileLocations[self.n_d] # Gets current Wavfile
-            self.fs_rec, self.a_rec = readWav(self.wavFileLoc) # Reads wavfile
-            self.a_rec = self.a_rec/np.max(np.abs(self.a_rec)) # formats
+            self.wavFileLoc = self.wavFileLocations[self.n_d]  # Gets current Wavfile
+            self.fs_rec, self.a_rec = readWav(self.wavFileLoc)  # Reads wavfile
+            self.a_rec = self.a_rec/np.max(np.abs(self.a_rec))  # formats
 
             self.a_rec = self.a_rec*self.calibNumPeak[self.n_d]
             self.n_rec = np.size(self.a_rec)
