@@ -115,7 +115,7 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
 
     def open_file(self):
         imptool = importTool()
-        self.file_loc, file_extention = imptool.fileLoc('*.wav')
+        self.file_loc, file_extention = imptool.file_loc_UI('*.wav')
         try:
             if self.file_loc != 0:
                 self.wavFileLocations.append(self.file_loc)
@@ -163,11 +163,13 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
             QtWidgets.QMessageBox.about(
                 self, 'Kalibrering 2',
                 'Öka volym och förstärkning tills dess att accelerationen \n' +
-                'är ' + str(self.calibNumPeak[n_d]*np.sqrt(2)/5) + 'V PEAK TO PEAK på oscilloscopet. \n'
-                'Justera den vertikala skalan så att båda signalerna passar med lite marginal')
+                'är ' + str(self.calibNumPeak[n_d]*np.sqrt(2)/10) + 'V peak to peak på oscilloscopet. \n' +
+                'Justera den vertikala skalan så att båda signalerna passar med lite marginal \n' +
+                'Signalen spelar i 30 sek \n'+
+                'TRYCK OK FÖR ATT STARTA')
             p = pyaudio.PyAudio()
 
-            volume = 0.2     # range [0.0, 1.0]
+            volume = 0.1     # range [0.0, 1.0]
             fs = 44100       # sampling rate, Hz, must be integer
             duration = 120   # in seconds, may be float
             f = eigfreq        # sine frequency, Hz, may be float
@@ -401,6 +403,21 @@ class mainwindow(QtWidgets.QMainWindow, Ui_MainWindow_main):
                 #flag = False
             t_rep_full = np.asarray(t_rep_full)
             a_rep_full = np.asarray(a_rep_full)
+            V_rep_full = np.asarray(V_rep_full)
+
+            while i < np.size(t_rep_full) - 1:
+                delta_t = t_rep_full[i+1]-t_rep_full[i]
+                if (delta_t) > 2*dt_rep:
+                    n_insert = int(delta_t*fs_rep)
+                    t = np.linspace(dt_rep, 1, n_insert)*(delta_t-dt_rep) + t_rep_full[i]
+                    t_rep_full = np.insert(t_rep_full, i+1, t)
+
+                    temp = np.zeros((n_insert, 1))
+                    a_rep_full = np.insert(a_rep_full, i+1, temp)
+                    V_rep_full = np.insert(V_rep_full, i+1, temp)
+                i = i + 1
+
+
 
             #if np.abs(t_rep_full[0] - self.t_start) > 1.5*dt_rep:
             #    print('First sequence empty')

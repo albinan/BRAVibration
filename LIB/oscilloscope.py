@@ -11,21 +11,24 @@ from playloop import WavePlayerLoop
 
 
 class Oscilloscope():
-    def __init__(self, activeChannels=[2], oscillResource='USB0::0x1AB1::0x04CE::DS1ZD171500380::INSTR', wavlength=6, memdepth=12000):
+    def __init__(self, activeChannels=[2], oscillResource='USB0::0x1AB1::0x04CE::DS1ZD171500380::INSTR', wavlength=6, memdepth=12000, offset=0):
         print('__init__ oscill')
         rm = visa.ResourceManager()
         self.inst = rm.open_resource(oscillResource)
-        self.inst.write('RUN')
-        time.sleep(1)
+        self.run()
         self.set_activeChannels(activeChannels)
         self.set_wavmode('RAW')
         self.set_wavform('ASCii')
         self.set_wavlength(wavlength)
         self.set_memdepth(memdepth)
+        self.set_verticalOffset(offset)
 
     def set_wavmode(self, wavmode):
         self.inst.write(':WAV:MODE ' + wavmode)
         self.wavmode = wavmode
+
+    def set_verticalOffset(self, channel, offset):
+        self.inst.write(':CHANnel:' + str(channel) + ':OFFSet ' + str(offset))
 
     def get_wavmode(self):
         return self.inst.query(':WAV:MODE?')
@@ -37,10 +40,17 @@ class Oscilloscope():
     def get_wavform(self):
         return self.inst.query(':WAV:FORM?')
 
+    def get_output_frequency(self, channel):
+        inst.write(':CHANnel:' + channel + 'FREQuency?')
+
     def run(self):
         self.inst.write('RUN')
         time.sleep(1)
-    def set_wavlength(self, t, inc=0):
+
+    def set_wavlength(self, t):
+        '''
+        Sets the oscilloscope window size to the closest possible value to t
+        '''
 
         t_inc = np.array([0.000000005, 0.00000002, 0.00000005, 0.0000001,
                          0.0000005, 0.000001, 0.000005, 0.00002,
@@ -48,7 +58,7 @@ class Oscilloscope():
                          0.005, 0.02, 0.05, 0.1,
                          0.5, 1, 2, 5, 20, 50])
         t_win = 12*t_inc
-        t_set = t_inc[np.argmin(np.abs(t_win-t)) + inc]
+        t_set = t_inc[np.argmin(np.abs(t_win-t))]
         t_current = float(self.inst.query(':TIMebase:MAIN:SCALe?'))
         if t_set != t_current:
             self.inst.write(':TIMebase:MAIN:SCALe ' + str(t_set))
@@ -113,6 +123,7 @@ class Oscilloscope():
         except Exception as e:
             print(e)
             return 0
+
     def set_sampleRate(self, fs):
         self.set_memdepth(fs*self.get_wavlength())
         self.sampleRate = self.get_sampleRate()
@@ -291,6 +302,17 @@ class Oscilloscope():
         Vpp = float(self.inst.query(
             ':MEASure:ITEM? VPP,CHANnel' + str(channel)))
         return Vpp
+
+    def meas_frequency(self, channel):
+        print(':MEASure:ITEM FREQuency,CHANnel' + str(channel))
+        freq = float(self.inst.query(
+            ':MEASure:ITEM? FREQuency,CHANnel' + str(channel)))
+        if freq > 10000000000:
+            return -1
+        else:
+            print('Vrms :', freq)
+            return freq
+
     def record_init(self, rec_time, sampleRate):
         self.set_wavlength(rec_time, inc=0)
         self.set_sampleRate(sampleRate)
