@@ -6,11 +6,26 @@ import matplotlib.pyplot as plt
 from scipy.fftpack import fft, fftfreq
 import threading
 import sys
+from aquire import aquire_type_constants
 sys.path.append('C:/Users/ReVibe/Documents/Albin/BRAVibration/LIB')
 from playloop import WavePlayerLoop
 
-
 class Oscilloscope():
+    '''
+    A class containing low and high level function for RIGOL DS1074Z.
+    '''
+
+    WRITE = 'w'
+    READ = 'r'
+
+    # AQUIRE TYPES
+    NORMAL ='NORMal'
+    AVERAGES = 'AVERages'
+    PEAK ='PEAK'
+    HIGH_RESOLUTION = 'HRESolution'
+
+
+    AQUIRE_TYPE.normal
     def __init__(self, activeChannels=[2], oscillResource='USB0::0x1AB1::0x04CE::DS1ZD171500380::INSTR', wavlength=6, memdepth=12000, offset=0):
         print('__init__ oscill')
         rm = visa.ResourceManager()
@@ -21,7 +36,167 @@ class Oscilloscope():
         self.set_wavform('ASCii')
         self.set_wavlength(wavlength)
         self.set_memdepth(memdepth)
-        self.set_verticalOffset(offset)
+        for channel in activeChannels:
+            self.set_verticalOffset(channel, offset)
+
+    # ----------SYSTEM COMMANDS----------
+
+    def sys_auto_scale(self):
+        '''
+        Enable the waveform auto setting function.
+        The oscilloscope will automatically adjust the vertical scale,
+        horizontal timebase, and trigger mode according to the input signal to
+        realize optimum waveform display.
+        '''
+        self.inst.write(':AUToscale')
+
+    def sys_clear_screen(self):
+        '''
+        Clear all the waveforms on the screen.
+        If the oscilloscope is in the RUN state, waveform will still be
+        displayed.
+        '''
+        self.inst.write(':CLEar')
+
+    def sys_run(self, willRun=True):
+        '''
+        The :RUN command starts the oscilloscope and the :STOP command stops
+        the oscilloscope.
+        '''
+        # NOTE: When the waveform record function is enabled or during the
+        # playback of the recorded waveform, these commands are invalid.
+        # FIX BOOLEAN
+
+        if willRun:
+            self.inst.write(':RUN')
+        elif not willRun:
+            self.inst.write(':STOP')
+
+    def sys_force_trigger(self):
+        '''
+        Generate a trigger signal forcefully
+        '''
+        # NOTE: This command is only applicable to the normal and
+        # single trigger modes (see the :TRIGger:SWEep command)
+        # FIX BOOLEAN
+        self.inst.write(':TFORce')
+
+    '''
+    AQUIRE COMMANDS
+    The :ACQuire commands are used to set and query the memory depth,
+    acquisition mode and the number of averages as well as query the current
+    sample rate of the oscilloscope.
+    '''
+
+    def aquire_averages(self, mode, count=2):
+        '''
+        Set or query the number of averages under the average acquisition mode.
+        Averages 2^count times.
+        '''
+        #NOTE: count has to be an integer between 1 and 10
+
+        if mode == self.WRITE:
+            if isinstance(count, int) and (1 <= count <= 10):
+                self.inst.write(':ACQuire:AVERages ' + str(count))
+                return 1
+            else:
+                print('Cannot set averages to ' + str(2**count))
+                return 0
+        elif mode == self.READ:
+            return int(self.inst.query(':ACQuire:AVERages?'))
+
+    def aquire_set_memdepth_analog(self, memdepth):
+        '''
+        - When a single channel is enabled, the range of <mdep> is {AUTO|12000|
+        120000|1200000|12000000|24000000}. Wherein, 24000000 (pts) is an
+        optional memory depth.
+        - When dual channels are enabled, the range of <mdep> is {AUTO|6000|
+        60000|600000|6000000|12000000}. Wherein, 12000000 (pts) is an optional
+        memory depth.
+        - When three/four channels are enabled, the range of <mdep> is {AUTO|
+        3000|30000|300000|3000000|6000000}. Wherein, 6000000 (pts) is an
+        optional memory depth.
+        '''
+        # NOTE: Memory Depth = Sample Rate x Waveform Length
+        # Wherein, the Waveform Length is the product of the horizontal
+        # timebase (set by the :TIMebase[:MAIN]:SCALe command) times the number
+        # of grids in the horizontal direction on the screen (12)
+        activeChannels = self.get_activeChannels()
+        print('Active channels: ', activeChannels)
+        n_activeChannels = np.size(activeChannels)
+
+        memdepth_set = 0
+        if memdepth == 0:
+            self.inst.write(':ACQuire:MDEPth AUTO')
+        elif n_activeChannels == 1:
+            allowed_mdepth = np.array([12000, 120000, 1200000, 12000000])
+            memdepth_set = allowed_mdepth[np.argmin(
+                           np.abs(allowed_mdepth-memdepth))]
+            self.inst.write(':ACQuire:MDEPth ' + str(memdepth_set))
+        elif n_activeChannels == 2:
+            allowed_mdepth = np.array([6000, 60000, 600000, 6000000])
+            memdepth_set = allowed_mdepth[np.argmin(
+                            np.abs(allowed_mdepth-memdepth))]
+            self.inst.write(':ACQuire:MDEPth ' + str(memdepth_set))
+        elif n_activeChannels == 3 or n_activeChannels == 4:
+            allowed_mdepth = np.array([3000, 30000, 300000, 3000000])
+            memdepth_set = allowed_mdepth[np.argmin(
+                           np.abs(allowed_mdepth-memdepth))]
+            self.inst.write(':ACQuire:MDEPth ' + str(memdepth_set))
+
+        if memdepth_set != self.aquire_get_memdepth_analog():
+            print('Failed to set memory depth to ' + str(memdepth_set))
+            return 0
+        print('Successfully set memory depth to ' + str(memdepth_set))
+        return 1
+
+    def aquire_get_memdepth_analog(self):
+        memdepth = self.inst.query(':ACQuire:MDEPth?')
+        if memdepth == 'AUTO':
+            return 0
+        else:
+            memdepth = int(memdepth)
+            return memdepth
+
+    def aquire_set_type(self, aq_type):
+        '''
+        NORMal: in this mode, the oscilloscope samples the signal at equal time
+                interval to rebuild the waveform. For most of the waveforms,
+                the best display effect can be obtained using this mode.
+        AVERages: in this mode, the oscilloscope averages the waveforms from
+                multiple samples to reduce the random noise of the input signal
+                and improve the vertical resolution.
+                The number of averages can be set by the:ACQuire:AVERages
+                command.
+                Greater number of averages can lower the noise and increase the
+                vertical resolution, but will also slow the response of the
+                displayed waveform to the waveform changes.
+        PEAK (Peak Detect): in this mode, the oscilloscope acquires the maximum
+                and minimum values of the signal within the sample interval to
+                get the envelope of the signal or the narrow pulse of the
+                signal that might be lost. In this mode, signal confusion can
+                be prevented but the noise displayed would be larger.
+        HRESolution (High Resolution): this mode uses a kind of ultra-sample
+                technique to average the neighboring points of the sample
+                waveform to reduce the random noise on the input signal and
+                generate much smoother waveforms on the screen. This is
+                generally used when the sample rate of the digital converter
+                is higher than the storage rate of the acquisition memory.
+        '''
+
+        if aq_type in ['NORMal', 'AVERages', 'PEAK', 'HRESolution']:
+            self.inst.write(':ACQuire:TYPE ' + aq_type)
+            if aq_type in self.aquire_get_type():
+                print('Successfully set aquire type to ' + str(aq_type))
+                return 1
+            else:
+                print('Failed to set aquire type to' + str(aq_type))
+        else:
+            print('Invalid aquire_type')
+            return 0
+
+    def aquire_get_type(self):
+        return self.inst.qurey(':ACQuire:TYPE?')
 
     def set_wavmode(self, wavmode):
         self.inst.write(':WAV:MODE ' + wavmode)
@@ -44,7 +219,7 @@ class Oscilloscope():
         inst.write(':CHANnel:' + channel + 'FREQuency?')
 
     def run(self):
-        self.inst.write('RUN')
+        self.inst.write(':RUN')
         time.sleep(1)
 
     def set_wavlength(self, t):
@@ -86,43 +261,8 @@ class Oscilloscope():
                 activeChannels.append(i)
         return activeChannels
 
-    def set_memdepth(self, memdepth):
-        activeChannels = self.get_activeChannels()
-        print('activeChannels', activeChannels)
-        n_activeChannels = np.size(activeChannels)
-        memdepth_set = 0
-        if n_activeChannels == 1:
-            allowed_mdepth = np.array([12000, 120000, 1200000, 12000000])
-            memdepth_set = allowed_mdepth[np.argmin(
-                            np.abs(allowed_mdepth-memdepth)
-                            )]
-            print(n_activeChannels, ' channels active')
-            print('     Setting memory depth to ', memdepth_set)
-            time.sleep(0.1)
-            self.inst.write(':ACQuire:MDEPth ' + str(memdepth_set))
-            time.sleep(0.1)
-        elif n_activeChannels == 2:
-            allowed_mdepth = np.array([6000, 60000, 600000, 6000000])
-            memdepth_set = allowed_mdepth[np.argmin(
-                            np.abs(allowed_mdepth-memdepth)
-                            )]
-            print('Setting memory depth to ', memdepth_set)
-            self.inst.write(':ACQuire:MDEPth ' + str(memdepth_set))
-        elif n_activeChannels == 3 or n_activeChannels == 4:
-            allowed_mdepth = np.array([3000, 30000, 300000, 3000000])
-            memdepth_set = allowed_mdepth[np.argmin(
-                            np.abs(allowed_mdepth-memdepth)
-                            )]
-            print('Setting memory depth to ', memdepth_set)
-            self.inst.write(':ACQuire:MDEPth ' + str(memdepth_set))
-        self.memdepth = memdepth
 
-    def get_memdepth(self):
-        try:
-            return float(self.inst.query(':ACQuire:MDEPth?'))
-        except Exception as e:
-            print(e)
-            return 0
+
 
     def set_sampleRate(self, fs):
         self.set_memdepth(fs*self.get_wavlength())
